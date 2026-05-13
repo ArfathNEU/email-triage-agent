@@ -1,0 +1,24 @@
+{
+  "name": "email-triage-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered email triage assistant using Claude tool-use and the Enron Email Dataset",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=@app/api",
+    "dev:web": "npm run dev --workspace=@app/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.16.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
