@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Env files — real secrets go in .env, never commit
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Test / coverage
+coverage/
+
+# SQLite runtime DB
+*.db
+*.db-journal
+
+# Enron corpus is ~1.5GB- big for github
+maildir/
+enron_mail_*.tar.gz
+
+# Misc
+.cache/
+*.tmp
