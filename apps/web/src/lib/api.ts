@@ -1,3 +1,4 @@
+import type { HealthResponse } from "@app/shared";
 const BASE_URL = "/api";
 
 class ApiError extends Error {
@@ -35,8 +36,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () =>
-    request<{ status: string; uptime: number; timestamp: string }>("/health"),
+  health: () => request<HealthResponse>("/health"),
 };
 
 export { ApiError };
