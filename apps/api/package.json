@@ -14,10 +14,12 @@
     "@app/shared": "*",
     "better-sqlite3": "^11.1.2",
     "cors": "^2.8.5",
+    "csv-parse": "^5.5.6",
     "csv-stringify": "^6.5.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mailparser": "^3.7.1",
+    "multer": "^1.4.5-lts.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -25,6 +27,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/mailparser": "^3.4.4",
+    "@types/multer": "^1.4.11",
     "@types/node": "^20.14.10"
   }
 }

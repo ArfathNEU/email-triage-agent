@@ -1,4 +1,5 @@
 import type { HealthResponse } from "@app/shared";
+
 const BASE_URL = "/api";
 
 class ApiError extends Error {
@@ -35,8 +36,38 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function upload<T>(path: string, file: File): Promise<T> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      body = await res.text();
+    }
+    throw new ApiError(res.status, `${res.status} ${res.statusText}`, body);
+  }
+
+  return (await res.json()) as T;
+}
+
+export interface UploadResult {
+  inserted: number;
+  skipped: number;
+  totalEmailsInDb: number;
+  errors: { row: number; reason: string }[];
+}
+
 export const api = {
   health: () => request<HealthResponse>("/health"),
+  uploadCsv: (file: File) => upload<UploadResult>("/uploads", file),
 };
 
 export { ApiError };
