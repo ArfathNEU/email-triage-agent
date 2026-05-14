@@ -33,7 +33,7 @@ export default function App() {
       <NavBar />
       <main className="mx-auto max-w-6xl">
         <Routes>
-          <Route path="/" element={<Navigate to="/inbox" replace />} />
+          <Route path="/" element={<Navigate to="/upload" replace />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/inbox" element={<InboxPage />} />
           <Route path="*" element={<NotFound />} />
