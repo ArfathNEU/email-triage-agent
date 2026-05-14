@@ -5,6 +5,19 @@ A full-stack application that uses Anthropic's Claude with tool-use to triage in
 Built for the SDE Co-Op technical assignment. The agent layer is real Claude API; the downstream tool execution is mocked and deterministic.
 
 ---
+## Live Demo
+
+Frontend:
+https://email-triage-agent-web.vercel.app/
+
+Backend API:
+https://email-triage-agent-api.onrender.com
+
+Health Check:
+https://email-triage-agent-api.onrender.com/health
+
+Note: The backend is hosted on Render's free tier, which may sleep after inactivity. The first request after a long pause can take 30–60 seconds while the service wakes up. Subsequent requests are faster.
+
 
 ## Demo
 
