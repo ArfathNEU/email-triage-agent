@@ -1,4 +1,8 @@
-import type { HealthResponse } from "@app/shared";
+import type {
+  HealthResponse,
+  Email,
+  EmailWithToolCalls,
+} from "@app/shared";
 
 const BASE_URL = "/api";
 
@@ -68,6 +72,8 @@ export interface UploadResult {
 export const api = {
   health: () => request<HealthResponse>("/health"),
   uploadCsv: (file: File) => upload<UploadResult>("/uploads", file),
+  listEmails: () => request<{ emails: Email[] }>("/emails"),
+  getEmail: (id: string) => request<EmailWithToolCalls>(`/emails/${id}`),
 };
 
 export { ApiError };
