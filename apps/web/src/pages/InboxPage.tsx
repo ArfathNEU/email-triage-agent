@@ -1,16 +1,60 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "../lib/api";
-import type { Email } from "@app/shared";
+import type { Email, ToolCall, ToolName } from "@app/shared";
+import { ToolCallCard, ToolBadge } from "../components/ToolCallCard";
+
+const ALL_TOOLS: ToolName[] = [
+  "schedule_meeting",
+  "draft_response",
+  "escalate_to_manager",
+  "create_task",
+  "flag_urgent",
+  "archive_no_action",
+];
+
+interface EmailWithBadges extends Email {
+  tools: ToolName[];
+}
 
 export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [toolFilter, setToolFilter] = useState<ToolName | null>(null);
 
   const listQuery = useQuery({
     queryKey: ["emails"],
     queryFn: api.listEmails,
   });
+
+  const detailsQuery = useQuery({
+    queryKey: ["all-email-details"],
+    queryFn: async () => {
+      const list = await api.listEmails();
+      const all = await Promise.all(
+        list.emails.map((e) => api.getEmail(e.id)),
+      );
+      return all;
+    },
+    enabled: !listQuery.isLoading && listQuery.data !== undefined,
+  });
+
+  const detailMap = useMemo(() => {
+    const m = new Map<string, ToolName[]>();
+    if (detailsQuery.data) {
+      for (const d of detailsQuery.data) {
+        m.set(
+          d.id,
+          d.toolCalls.map((tc) => tc.tool as ToolName),
+        );
+      }
+    }
+    return m;
+  }, [detailsQuery.data]);
 
   const detailQuery = useQuery({
     queryKey: ["emails", selectedId],
@@ -18,16 +62,20 @@ export default function InboxPage() {
     enabled: selectedId !== null,
   });
 
-  const filtered = useMemo(() => {
+  const filtered: EmailWithBadges[] = useMemo(() => {
     const emails = listQuery.data?.emails ?? [];
     const q = search.trim().toLowerCase();
-    if (!q) return emails;
-    return emails.filter(
-      (e) =>
-        e.subject.toLowerCase().includes(q) ||
-        e.from.toLowerCase().includes(q),
-    );
-  }, [listQuery.data, search]);
+    return emails
+      .map((e) => ({ ...e, tools: detailMap.get(e.id) ?? [] }))
+      .filter((e) => {
+        if (q) {
+          const haystack = `${e.subject} ${e.from}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        if (toolFilter && !e.tools.includes(toolFilter)) return false;
+        return true;
+      });
+  }, [listQuery.data, detailMap, search, toolFilter]);
 
   if (listQuery.isLoading) {
     return <div className="p-8 text-gray-600">Loading inbox…</div>;
@@ -61,12 +109,15 @@ export default function InboxPage() {
     <div className="flex h-[calc(100vh-60px)]">
       <div className="w-1/2 border-r border-gray-200 overflow-y-auto">
         <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-4">
-          <h1 className="text-xl font-semibold text-gray-900">
-            Inbox{" "}
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              {filtered.length} of {emails.length}
-            </span>
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900">
+              Inbox{" "}
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                {filtered.length} of {emails.length}
+              </span>
+            </h1>
+            <RunAgentButton />
+          </div>
           <input
             type="text"
             placeholder="Search sender or subject…"
@@ -74,6 +125,21 @@ export default function InboxPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
           />
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <FilterChip
+              label="All"
+              active={toolFilter === null}
+              onClick={() => setToolFilter(null)}
+            />
+            {ALL_TOOLS.map((t) => (
+              <FilterChip
+                key={t}
+                label={t.replace(/_/g, " ")}
+                active={toolFilter === t}
+                onClick={() => setToolFilter(toolFilter === t ? null : t)}
+              />
+            ))}
+          </div>
         </div>
 
         <ul>
@@ -107,12 +173,68 @@ export default function InboxPage() {
   );
 }
 
+function RunAgentButton() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: () => api.runAgent(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["all-email-details"] });
+    },
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      {mutation.data && (
+        <span className="text-xs text-gray-600">
+          {mutation.data.processed} processed ·{" "}
+          {mutation.data.toolCallsTotal} calls ·{" "}
+          {mutation.data.failures.length} failed
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="rounded-md bg-violet-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+      >
+        {mutation.isPending ? "Running…" : "Run agent"}
+      </button>
+    </div>
+  );
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+        active
+          ? "bg-gray-900 text-white"
+          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function EmailRow({
   email,
   isSelected,
   onClick,
 }: {
-  email: Email;
+  email: EmailWithBadges;
   isSelected: boolean;
   onClick: () => void;
 }) {
@@ -141,6 +263,13 @@ function EmailRow({
         <p className="mt-1 truncate text-sm text-gray-700">
           {email.subject || "(no subject)"}
         </p>
+        {email.tools.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {email.tools.map((t, i) => (
+              <ToolBadge key={i} tool={t} />
+            ))}
+          </div>
+        )}
       </button>
     </li>
   );
@@ -149,7 +278,7 @@ function EmailRow({
 function EmailDetail({
   email,
 }: {
-  email: Email & { toolCalls: unknown[] };
+  email: Email & { toolCalls: ToolCall[] };
 }) {
   return (
     <article className="p-6">
@@ -157,23 +286,23 @@ function EmailDetail({
         <h2 className="text-lg font-semibold text-gray-900">
           {email.subject || "(no subject)"}
         </h2>
-        <dl className="mt-2 text-sm text-gray-600 space-y-0.5">
+        <dl className="mt-2 space-y-0.5 text-sm text-gray-600">
           <div className="flex gap-2">
-            <dt className="font-medium text-gray-500 w-12">From</dt>
+            <dt className="w-12 font-medium text-gray-500">From</dt>
             <dd className="font-mono">{email.from}</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="font-medium text-gray-500 w-12">To</dt>
+            <dt className="w-12 font-medium text-gray-500">To</dt>
             <dd className="font-mono">{email.to}</dd>
           </div>
           {email.cc && (
             <div className="flex gap-2">
-              <dt className="font-medium text-gray-500 w-12">Cc</dt>
+              <dt className="w-12 font-medium text-gray-500">Cc</dt>
               <dd className="font-mono">{email.cc}</dd>
             </div>
           )}
           <div className="flex gap-2">
-            <dt className="font-medium text-gray-500 w-12">Date</dt>
+            <dt className="w-12 font-medium text-gray-500">Date</dt>
             <dd className="font-mono">{email.date}</dd>
           </div>
         </dl>
@@ -185,16 +314,18 @@ function EmailDetail({
 
       <section className="mt-8">
         <h3 className="text-sm font-medium uppercase tracking-wide text-gray-500">
-          Agent recommendations
+          Agent recommendations ({email.toolCalls.length})
         </h3>
         {email.toolCalls.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">
-            No tool calls yet. Run the agent (coming in next step).
+            No tool calls yet. Run the agent.
           </p>
         ) : (
-          <pre className="mt-2 text-xs">
-            {JSON.stringify(email.toolCalls, null, 2)}
-          </pre>
+          <div className="mt-3 space-y-3">
+            {email.toolCalls.map((tc) => (
+              <ToolCallCard key={tc.id} toolCall={tc} />
+            ))}
+          </div>
         )}
       </section>
     </article>

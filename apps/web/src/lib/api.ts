@@ -74,6 +74,17 @@ export const api = {
   uploadCsv: (file: File) => upload<UploadResult>("/uploads", file),
   listEmails: () => request<{ emails: Email[] }>("/emails"),
   getEmail: (id: string) => request<EmailWithToolCalls>(`/emails/${id}`),
+  executeTool: (toolCallId: number) =>
+    request<{ result: Record<string, unknown>; cached: boolean }>(
+      `/tools/${toolCallId}/execute`,
+      { method: "POST" },
+    ),
+  runAgent: () =>
+    request<{
+      processed: number;
+      toolCallsTotal: number;
+      failures: { emailId: string; error: string }[];
+    }>("/agent/run", { method: "POST" }),
 };
 
 export { ApiError };
