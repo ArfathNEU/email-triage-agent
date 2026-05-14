@@ -9,7 +9,8 @@ import toolsRouter from "./routes/tools.js";
 const app = express();
 const port = Number(process.env.PORT) || 3001;
 
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN ?? "*";
+app.use(cors({ origin: corsOrigin === "*" ? true : corsOrigin.split(",") }));
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
