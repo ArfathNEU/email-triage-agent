@@ -29,9 +29,9 @@ coverage/
 *.db
 *.db-journal
 
-# Enron corpus is ~1.5GB- big for github
+# Enron corpus is too big for GitHub
 maildir/
-enron_mail_*.tar.gz
+enron_mail*.tar.gz
 
 # Misc
 .cache/
