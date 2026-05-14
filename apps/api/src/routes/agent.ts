@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { listEmails } from "../db/queries.js";
-import { runAgentForEmails } from "../agent/run.js";
+import { runAgentForEmails, getProgress } from "../agent/run.js";
 
 const router = Router();
 
@@ -22,6 +22,10 @@ router.post("/run", async (_req, res) => {
       message: err instanceof Error ? err.message : String(err),
     });
   }
+});
+
+router.get("/status", (_req, res) => {
+  res.json(getProgress());
 });
 
 export default router;

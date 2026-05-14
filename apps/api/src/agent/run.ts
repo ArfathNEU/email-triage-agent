@@ -19,6 +19,60 @@ if (!apiKey) {
 
 const client = new Anthropic({ apiKey: apiKey ?? "missing" });
 
+// ---------- Progress tracking (module-level singleton) ----------
+
+export interface AgentProgress {
+  state: "idle" | "running" | "finished" | "error";
+  total: number;
+  completed: number;
+  failed: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastError: string | null;
+}
+
+const progress: AgentProgress = {
+  state: "idle",
+  total: 0,
+  completed: 0,
+  failed: 0,
+  startedAt: null,
+  finishedAt: null,
+  lastError: null,
+};
+
+export function getProgress(): AgentProgress {
+  return { ...progress };
+}
+
+function resetProgress(total: number): void {
+  progress.state = "running";
+  progress.total = total;
+  progress.completed = 0;
+  progress.failed = 0;
+  progress.startedAt = new Date().toISOString();
+  progress.finishedAt = null;
+  progress.lastError = null;
+}
+
+function recordSuccess(): void {
+  progress.completed += 1;
+}
+
+function recordFailure(error: string): void {
+  progress.completed += 1;
+  progress.failed += 1;
+  progress.lastError = error;
+}
+
+function finishProgress(error?: string): void {
+  progress.state = error ? "error" : "finished";
+  progress.finishedAt = new Date().toISOString();
+  if (error) progress.lastError = error;
+}
+
+// ---------- Agent runner ----------
+
 interface RunResult {
   emailId: string;
   toolCallCount: number;
@@ -65,12 +119,15 @@ async function triageOne(email: Email): Promise<RunResult> {
       count++;
     }
 
+    recordSuccess();
     return { emailId: email.id, toolCallCount: count };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    recordFailure(message);
     return {
       emailId: email.id,
       toolCallCount: 0,
-      error: err instanceof Error ? err.message : String(err),
+      error: message,
     };
   }
 }
@@ -82,31 +139,41 @@ export async function runAgentForEmails(emails: Email[]): Promise<{
 }> {
   const limit = pLimit(concurrency);
 
-  const results = await Promise.all(
-    emails.map((email) =>
-      limit(async () => {
-        // Skip emails that already have tool calls (idempotency)
-        const existing = getToolCallsForEmail(email.id);
-        if (existing.length > 0) {
-          return { emailId: email.id, toolCallCount: existing.length };
-        }
-        return triageOne(email);
-      }),
-    ),
-  );
+  resetProgress(emails.length);
 
-  const failures = results
-    .filter((r) => r.error)
-    .map((r) => ({ emailId: r.emailId, error: r.error! }));
+  try {
+    const results = await Promise.all(
+      emails.map((email) =>
+        limit(async () => {
+          const existing = getToolCallsForEmail(email.id);
+          if (existing.length > 0) {
+            recordSuccess(); // already-done counts as progress
+            return { emailId: email.id, toolCallCount: existing.length };
+          }
+          return triageOne(email);
+        }),
+      ),
+    );
 
-  const toolCallsTotal = results.reduce(
-    (sum, r) => sum + r.toolCallCount,
-    0,
-  );
+    const failures = results
+      .filter((r) => r.error)
+      .map((r) => ({ emailId: r.emailId, error: r.error! }));
 
-  return {
-    processed: results.length,
-    toolCallsTotal,
-    failures,
-  };
+    const toolCallsTotal = results.reduce(
+      (sum, r) => sum + r.toolCallCount,
+      0,
+    );
+
+    finishProgress();
+
+    return {
+      processed: results.length,
+      toolCallsTotal,
+      failures,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    finishProgress(message);
+    throw err;
+  }
 }

@@ -69,6 +69,16 @@ export interface UploadResult {
   errors: { row: number; reason: string }[];
 }
 
+export interface AgentProgress {
+  state: "idle" | "running" | "finished" | "error";
+  total: number;
+  completed: number;
+  failed: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastError: string | null;
+}
+
 export const api = {
   health: () => request<HealthResponse>("/health"),
   uploadCsv: (file: File) => upload<UploadResult>("/uploads", file),
@@ -85,6 +95,7 @@ export const api = {
       toolCallsTotal: number;
       failures: { emailId: string; error: string }[];
     }>("/agent/run", { method: "POST" }),
+  getAgentStatus: () => request<AgentProgress>("/agent/status"),
 };
 
 export { ApiError };

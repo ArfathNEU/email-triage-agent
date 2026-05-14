@@ -7,6 +7,7 @@ import {
 import { api } from "../lib/api";
 import type { Email, ToolCall, ToolName } from "@app/shared";
 import { ToolCallCard, ToolBadge } from "../components/ToolCallCard";
+import { AgentProgressBar } from "../components/AgentProgressBar";
 
 const ALL_TOOLS: ToolName[] = [
   "schedule_meeting",
@@ -113,7 +114,7 @@ export default function InboxPage() {
         className={`${showList ? "" : "hidden md:block"} w-full md:w-1/2 border-r border-gray-200 overflow-y-auto`}
       >
         <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-start justify-between gap-2">
             <h1 className="text-xl font-semibold text-gray-900">
               Inbox{" "}
               <span className="ml-2 text-sm font-normal text-gray-500">
@@ -195,14 +196,7 @@ function RunAgentButton() {
   });
 
   return (
-    <div className="flex items-center gap-2">
-      {mutation.data && (
-        <span className="hidden sm:inline text-xs text-gray-600">
-          {mutation.data.processed} processed ·{" "}
-          {mutation.data.toolCallsTotal} calls ·{" "}
-          {mutation.data.failures.length} failed
-        </span>
-      )}
+    <div className="flex flex-col items-end gap-2 min-w-[200px]">
       <button
         type="button"
         onClick={() => mutation.mutate()}
@@ -212,6 +206,7 @@ function RunAgentButton() {
       >
         {mutation.isPending ? "Running…" : "Run agent"}
       </button>
+      <AgentProgressBar active={mutation.isPending} />
     </div>
   );
 }
