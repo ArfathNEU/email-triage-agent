@@ -105,11 +105,15 @@ export default function InboxPage() {
     );
   }
 
+  const showList = selectedId === null;
+
   return (
-    <div className="flex h-[calc(100vh-60px)]">
-      <div className="w-1/2 border-r border-gray-200 overflow-y-auto">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-60px)]">
+      <div
+        className={`${showList ? "" : "hidden md:block"} w-full md:w-1/2 border-r border-gray-200 overflow-y-auto`}
+      >
         <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-semibold text-gray-900">
               Inbox{" "}
               <span className="ml-2 text-sm font-normal text-gray-500">
@@ -123,6 +127,7 @@ export default function InboxPage() {
             placeholder="Search sender or subject…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search emails by sender or subject"
             className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
           />
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -154,7 +159,9 @@ export default function InboxPage() {
         </ul>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div
+        className={`${showList ? "hidden md:flex" : "flex"} flex-1 flex-col overflow-y-auto bg-white`}
+      >
         {selectedId === null ? (
           <div className="flex h-full items-center justify-center text-gray-400">
             Select an email to view details
@@ -166,7 +173,10 @@ export default function InboxPage() {
             Failed: {(detailQuery.error as Error).message}
           </div>
         ) : detailQuery.data ? (
-          <EmailDetail email={detailQuery.data} />
+          <EmailDetail
+            email={detailQuery.data}
+            onBack={() => setSelectedId(null)}
+          />
         ) : null}
       </div>
     </div>
@@ -187,7 +197,7 @@ function RunAgentButton() {
   return (
     <div className="flex items-center gap-2">
       {mutation.data && (
-        <span className="text-xs text-gray-600">
+        <span className="hidden sm:inline text-xs text-gray-600">
           {mutation.data.processed} processed ·{" "}
           {mutation.data.toolCallsTotal} calls ·{" "}
           {mutation.data.failures.length} failed
@@ -197,6 +207,7 @@ function RunAgentButton() {
         type="button"
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
+        aria-label="Run the agent on all uploaded emails"
         className="rounded-md bg-violet-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-800 disabled:opacity-50"
       >
         {mutation.isPending ? "Running…" : "Run agent"}
@@ -218,6 +229,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
         active
           ? "bg-gray-900 text-white"
@@ -277,28 +289,38 @@ function EmailRow({
 
 function EmailDetail({
   email,
+  onBack,
 }: {
   email: Email & { toolCalls: ToolCall[] };
+  onBack: () => void;
 }) {
   return (
     <article className="p-6">
       <header className="border-b border-gray-200 pb-4">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to inbox list"
+          className="md:hidden mb-3 inline-flex items-center text-sm text-gray-600 hover:text-gray-900"
+        >
+          ← Back to inbox
+        </button>
         <h2 className="text-lg font-semibold text-gray-900">
           {email.subject || "(no subject)"}
         </h2>
         <dl className="mt-2 space-y-0.5 text-sm text-gray-600">
           <div className="flex gap-2">
             <dt className="w-12 font-medium text-gray-500">From</dt>
-            <dd className="font-mono">{email.from}</dd>
+            <dd className="font-mono break-all">{email.from}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="w-12 font-medium text-gray-500">To</dt>
-            <dd className="font-mono">{email.to}</dd>
+            <dd className="font-mono break-all">{email.to}</dd>
           </div>
           {email.cc && (
             <div className="flex gap-2">
               <dt className="w-12 font-medium text-gray-500">Cc</dt>
-              <dd className="font-mono">{email.cc}</dd>
+              <dd className="font-mono break-all">{email.cc}</dd>
             </div>
           )}
           <div className="flex gap-2">
